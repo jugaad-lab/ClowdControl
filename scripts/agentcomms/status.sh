@@ -6,16 +6,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../.env" 2>/dev/null || true
-
-AGENT_ID="${AGENT_ID:-unknown}"
+source "$SCRIPT_DIR/load-env.sh"
 
 if [[ "${1:-}" == "--check" ]]; then
   # Check status in registry
-  if [[ -z "${MC_SUPABASE_URL:-}" || -z "${MC_SERVICE_KEY:-}" ]]; then
-    echo "❌ Missing MC_SUPABASE_URL or MC_SERVICE_KEY in .env"
-    exit 1
-  fi
+  validate_env
   
   curl -sS "${MC_SUPABASE_URL}/rest/v1/agents?id=eq.${AGENT_ID}" \
     -H "apikey: ${MC_SERVICE_KEY}" \
@@ -34,7 +29,7 @@ fi
 curl -sS -X POST "${AGENTCOMMS_WEBHOOK}" \
   -H "Content-Type: application/json" \
   -d "{
-    \"content\": \"🤖 **Agent Status** | ${AGENT_ID} | ${STATUS_MSG}\"
+    \"content\": \"🤖 **Agent Status** | ${AGENT_ID:-unknown} | ${STATUS_MSG}\"
   }"
 
 echo ""

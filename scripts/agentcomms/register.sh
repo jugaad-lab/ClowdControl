@@ -5,16 +5,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../.env" 2>/dev/null || true
+source "$SCRIPT_DIR/load-env.sh"
+validate_env
 
 AGENT_ID="${1:-${AGENT_ID:-$(hostname)}}"
 shift || true
 CAPABILITIES="${*:-coding,research,writing}"
-
-if [[ -z "${MC_SUPABASE_URL:-}" || -z "${MC_SERVICE_KEY:-}" ]]; then
-  echo "❌ Missing MC_SUPABASE_URL or MC_SERVICE_KEY in .env"
-  exit 1
-fi
 
 # Convert comma-separated to JSON array
 CAPS_JSON=$(echo "$CAPABILITIES" | tr ',' '\n' | jq -R . | jq -s .)

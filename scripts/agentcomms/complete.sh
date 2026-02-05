@@ -5,15 +5,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/../.env" 2>/dev/null || true
+source "$SCRIPT_DIR/load-env.sh"
+validate_env
 
 TASK_ID="${1:?Usage: $0 <task_id> [result_message]}"
 RESULT_MSG="${2:-Completed successfully}"
-
-if [[ -z "${MC_SUPABASE_URL:-}" || -z "${MC_SERVICE_KEY:-}" ]]; then
-  echo "❌ Missing MC_SUPABASE_URL or MC_SERVICE_KEY in .env"
-  exit 1
-fi
 
 RESULT=$(curl -sS -X PATCH "${MC_SUPABASE_URL}/rest/v1/task_handoffs?id=eq.${TASK_ID}" \
   -H "apikey: ${MC_SERVICE_KEY}" \
