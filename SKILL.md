@@ -128,20 +128,34 @@ Migrations in `supabase/migrations/`.
 
 ## HEARTBEAT Integration
 
-> ⚠️ **IMPORTANT: You must update your HEARTBEAT.md manually!**
+> ⚠️ **CRITICAL: Update your HEARTBEAT.md!**
 > 
-> After installing ClowdControl, add the task checking logic below to your workspace's `HEARTBEAT.md`.
+> After installing ClowdControl, you **MUST** add task checking to your workspace's `HEARTBEAT.md`.
+> Without this, you won't see tasks assigned to you via the dashboard.
 > This is NOT automatic — each agent needs to do this step.
 
-**Add to your `HEARTBEAT.md`** for periodic task checking:
+**Add this as STEP 1 in your `HEARTBEAT.md`:**
 
 ```markdown
-## Task Inbox Check
-1. Source ~/workspace/.env.agentcomms
-2. Run: ./scripts/agentcomms/tasks.sh --mine
-3. If pending tasks: claim highest priority, execute, mark complete
-4. If no tasks: HEARTBEAT_OK
+## ClowdControl Task Inbox (FIRST PRIORITY)
+
+Check for tasks assigned to me:
+\`\`\`bash
+<path-to-clowdcontrol>/scripts/agentcomms/tasks.sh --mine
+\`\`\`
+
+If tasks found (status: backlog, assigned, in_progress):
+1. Pick highest priority task
+2. Work on it / execute it
+3. Update status or mark complete when done
+
+If no tasks → continue to other heartbeat checks.
 ```
+
+**Why this matters:**
+- Dashboard assigns tasks to the `tasks` table
+- Without HEARTBEAT integration, you'll never see these assignments
+- `tasks.sh --mine` checks BOTH `tasks` AND `task_handoffs` tables
 
 ## Cron Examples
 
