@@ -1,142 +1,132 @@
 # ClowdControl 🎮
 
-**Multi-agent coordination infrastructure for Clawdbot teams.**
+**Multi-agent coordination infrastructure for AI teams.**
 
 Enable your AI agents to collaborate with other agents — across owners, platforms, and workspaces.
 
+[![GitHub](https://img.shields.io/github/license/jugaad-lab/ClowdControl)](LICENSE)
+
 ---
 
-## What is ClowdControl?
+## 🎯 What is ClowdControl?
 
-ClowdControl provides the missing layer for multi-agent AI collaboration:
+ClowdControl solves the missing layer in multi-agent AI collaboration:
 
-| Problem | ClowdControl Solution |
-|---------|----------------------|
-| No owner identity | **OwnerCards** — agents belong to humans |
-| No consent protocols | **TrustTiers** — explicit permission grants |
-| Runaway costs | **Turn limits** — human checkpoints |
-| Debugging nightmare | **Discord observability** — persistent message history |
-| Framework lock-in | **Protocol-first** — works with any agent |
+| Problem | Solution |
+|---------|----------|
+| No owner identity | **Trust Tiers** — agents belong to humans with explicit consent |
+| Runaway costs | **Turn limits** — automatic human checkpoints |
+| Debugging nightmare | **Discord observability** — persistent, searchable history |
+| Framework lock-in | **Protocol-first** — works with any agent framework |
+| Sycophancy/groupthink | **Independent generation** — agents think before they share |
 
-## Quick Start
+## ✨ Features
 
-### 1. Install the Tribe Protocol Skill
+- **🎛️ Web Dashboard** — Next.js UI for projects, tasks, sprints, and debates
+- **🤝 Trust Protocol** — 4-tier trust system for agent relationships
+- **📋 Project Management** — Sprints, tasks, acceptance criteria, PM coordination
+- **🔄 Multi-PM Debates** — Structured disagreement with anti-sycophancy guardrails
+- **🔔 Discord Integration** — Notifications, channels, and human-in-the-loop
+
+## 🚀 Quick Start
+
+### 1. Clone & Install
 
 ```bash
-# Copy to your Clawdbot skills folder
-cp -r skills/tribe-protocol ~/.clawdbot/skills/
-
-# Add to your clawdbot.json
-{
-  "skills": [
-    "~/.clawdbot/skills/tribe-protocol"
-  ]
-}
+git clone https://github.com/jugaad-lab/ClowdControl.git
+cd ClowdControl/dashboard
+npm install
 ```
 
-### 2. Create Your TRIBE.md
+### 2. Set Up Supabase
 
 ```bash
-cp templates/TRIBE.md.template ~/workspace/TRIBE.md
-# Edit with your human's Discord ID at Tier 4
+# Create a Supabase project at supabase.com
+# Copy your project URL and anon key
+
+cp .env.local.example .env.local
+# Edit .env.local with your Supabase credentials
 ```
 
-### 3. Set Up Supabase (Optional)
-
-For project coordination and UI dashboard:
+### 3. Deploy Schema
 
 ```bash
-cd supabase
-supabase login
+cd ../supabase
+# Run migrations in Supabase SQL Editor, or:
 supabase link --project-ref YOUR_PROJECT_REF
 supabase db push
 ```
 
-## Core Concepts
+### 4. Run Dashboard
 
-### Trust Tiers
+```bash
+cd ../dashboard
+npm run dev
+# Open http://localhost:3000
+```
 
-| Tier | Name | Who | Behavior |
-|------|------|-----|----------|
-| 4 | My Human | Your owner | Full trust |
-| 3 | Tribe | Approved collaborators | Work together freely |
-| 2 | Acquaintance | Known, limited | Polite, bounded |
-| 1 | Stranger | Unknown/default | Minimal engagement |
-
-### Guardrails
-
-- **3-strike rule** — 3 unresolved disagreements → escalate to humans
-- **10-turn limit** — Human checkpoint after 10 exchanges
-- **1-hour timeout** — Pause if no human response
-- **No secrets sharing** — Never share API keys, credentials, private files between agents
-
-### Project Coordination
-
-- **Projects** belong to one or more owners
-- **Agents** are assigned as PM, Developer, Researcher, etc.
-- **Tasks** track work with acceptance criteria
-- **Sprints** organize phases with deadlines
-
-## Directory Structure
+## 📁 Project Structure
 
 ```
 ClowdControl/
 ├── dashboard/               # Next.js web UI
-│   ├── src/
-│   │   ├── app/             # Pages (projects, debates, proposals)
-│   │   ├── components/      # 40+ React components
-│   │   └── lib/             # Supabase client, utils
-│   └── package.json
-├── agents/                  # Agent templates & profiles
-│   ├── pm-orchestrator.md   # PM agent spec
-│   └── worker-*.md          # Specialist agent specs
-├── docs/                    # Design docs & research
-│   ├── SPEC.md              # Technical specification
-│   ├── RESEARCH.md          # Protocol research
-│   ├── PM-PROTOCOL.md       # PM coordination protocol
-│   └── SETUP.md             # Setup guide
+│   ├── src/app/             # Pages (projects, debates, proposals)
+│   ├── src/components/      # 40+ React components
+│   └── src/lib/             # Supabase client, utilities
+├── agents/                  # Agent role templates
+│   ├── pm-orchestrator.md   # Project Manager spec
+│   └── worker-*.md          # Specialist agents (dev, QA, research...)
 ├── skills/                  # Clawdbot skills
-│   ├── tribe-protocol/      # Trust management
-│   └── bot-ping/            # Agent presence
-├── supabase/                # Database layer
-│   ├── migrations/          # Schema migrations
-│   └── full-schema.sql      # Complete schema
-├── scripts/                 # Utility scripts
-└── templates/               # Starter templates
+│   └── tribe-protocol/      # Trust management system
+├── supabase/                # Database
+│   ├── full-schema.sql      # Complete schema
+│   └── migrations/          # Incremental migrations
+└── docs/                    # Documentation
+    ├── architecture/        # System design docs
+    └── guides/              # Setup & usage guides
 ```
 
-## Why Discord?
+## 🔐 Trust Tiers
 
-Discord naturally provides coordination primitives that raw frameworks lack:
+| Tier | Name | Description |
+|------|------|-------------|
+| 4 | My Human | Your owner — full trust |
+| 3 | Tribe | Approved collaborators — work freely together |
+| 2 | Acquaintance | Known but limited — polite, bounded |
+| 1 | Stranger | Unknown — minimal engagement |
 
-- **Message ordering** → Serialization (no race conditions)
-- **Persistent history** → Observability (easy debugging)
-- **Channels** → Isolation (context separation)
-- **Roles/Permissions** → Trust hierarchy
-- **Threads** → Sub-conversations
+**Key rule:** Only Tier 4 (your human) can approve trust changes.
 
-## Research
+## 🛡️ Guardrails
 
-This project synthesizes learnings from:
+- **3-strike rule** — 3 unresolved disagreements → escalate to humans
+- **10-turn limit** — Human checkpoint after 10 exchanges
+- **1-hour timeout** — Pause if no human response
+- **No secrets** — Never share API keys or credentials between agents
+- **Anti-sycophancy** — Independent opinion generation before reveal
 
-- Google A2A, Anthropic MCP, IBM ACP protocols
-- Microsoft AutoGen, CrewAI, LangGraph frameworks
-- IETF Agent Name Service draft
-- Community pain points (r/LocalLLaMA, r/CrewAI, HuggingFace)
+## 📚 Documentation
 
-See [docs/RESEARCH.md](docs/RESEARCH.md) for the full analysis.
+| Doc | Description |
+|-----|-------------|
+| [SETUP.md](docs/guides/SETUP.md) | Full setup guide |
+| [PM-PROTOCOL.md](docs/architecture/PM-PROTOCOL.md) | Project Manager coordination |
+| [SPEC.md](docs/architecture/SPEC.md) | Technical specification |
+| [RESEARCH.md](docs/architecture/RESEARCH.md) | Protocol research & analysis |
 
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repo
 2. Create a feature branch
 3. Submit a PR
 4. Wait for human approval (no bot merges!)
 
-## License
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-MIT
+## 📄 License
+
+MIT — see [LICENSE](LICENSE)
 
 ---
 
-Built by [Jugaad Lab](https://github.com/jugaad-lab) 🛠️
+Built with 🛠️ by [Jugaad Lab](https://github.com/jugaad-lab)
