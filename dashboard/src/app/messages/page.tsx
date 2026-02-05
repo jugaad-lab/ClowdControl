@@ -7,6 +7,7 @@ import { useTheme } from '@/lib/hooks';
 import { MessageList } from '@/components/messages/MessageList';
 import { MessageFilters, useMessageFilters } from '@/components/messages/MessageFilters';
 import { MessageDetails } from '@/components/messages/MessageDetails';
+import { useToast } from '@/components/ui/toast';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +34,7 @@ export default function MessagesPage() {
   const [sidePanelOpen, setSidePanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { theme, toggleTheme } = useTheme();
+  const { addToast } = useToast();
   const filterHook = useMessageFilters();
   const { filters } = filterHook;
 
@@ -47,7 +49,11 @@ export default function MessagesPage() {
           .limit(500); // Limit to prevent too much data
 
         if (messagesError) {
-          console.error('Error fetching messages:', messagesError);
+          addToast({
+            type: 'error',
+            title: 'Failed to fetch messages',
+            description: messagesError.message || 'An unexpected error occurred'
+          });
           return;
         }
 
@@ -62,7 +68,11 @@ export default function MessagesPage() {
         setAgents(Array.from(uniqueAgents).sort());
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        addToast({
+          type: 'error',
+          title: 'Failed to load messages',
+          description: error instanceof Error ? error.message : 'An unexpected error occurred'
+        });
       } finally {
         setLoading(false);
       }
@@ -123,8 +133,20 @@ export default function MessagesPage() {
       if (selectedMessage?.id === messageId) {
         setSelectedMessage((prev) => prev ? { ...prev, ...updates } : null);
       }
+
+      // Show success toast for read/unread operations
+      if ('read' in updates) {
+        addToast({
+          type: 'success',
+          title: `Message marked as ${updates.read ? 'read' : 'unread'}`,
+        });
+      }
     } catch (error) {
-      console.error('Error updating message:', error);
+      addToast({
+        type: 'error',
+        title: 'Failed to update message',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred'
+      });
     }
   };
 

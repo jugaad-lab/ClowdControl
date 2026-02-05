@@ -11,9 +11,11 @@ import {
   MoreHorizontal,
   CheckCircle2,
   Circle,
-  ExternalLink
+  ExternalLink,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/components/ui/toast';
 import { AgentMessage } from '@/app/messages/page';
 
 interface MessageDetailsProps {
@@ -30,16 +32,36 @@ export function MessageDetails({
   onMessageUpdate
 }: MessageDetailsProps) {
   const [showRawJson, setShowRawJson] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const { addToast } = useToast();
 
   if (!open || !message) return null;
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    // Could add a toast notification here
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast({
+        type: 'success',
+        title: 'Copied to clipboard',
+      });
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Failed to copy',
+        description: 'Unable to copy to clipboard'
+      });
+    }
   };
 
   const toggleRead = async () => {
-    await onMessageUpdate(message.id, { read: !message.read });
+    if (isUpdating) return;
+    
+    setIsUpdating(true);
+    try {
+      await onMessageUpdate(message.id, { read: !message.read });
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const getMessageTypeColor = (type: string) => {
@@ -86,15 +108,20 @@ export function MessageDetails({
           <div className="flex items-center gap-2">
             <button
               onClick={toggleRead}
+              disabled={isUpdating}
               className={cn(
                 'p-1.5 rounded-md transition-colors',
-                message.read
+                isUpdating 
+                  ? 'text-zinc-400 cursor-not-allowed'
+                  : message.read
                   ? 'text-zinc-400 hover:text-blue-500'
                   : 'text-blue-500 hover:text-blue-600'
               )}
               title={message.read ? 'Mark as unread' : 'Mark as read'}
             >
-              {message.read ? (
+              {isUpdating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : message.read ? (
                 <CheckCircle2 className="w-4 h-4" />
               ) : (
                 <Circle className="w-4 h-4" />

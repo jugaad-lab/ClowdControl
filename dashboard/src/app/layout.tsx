@@ -5,6 +5,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { BugReportButton } from "@/components/BugReportButton";
 import { AuthProvider } from "@/components/AuthProvider";
 import { UserMenu } from "@/components/UserMenu";
+import { ToastProvider } from "@/components/ui/toast";
 import { config } from "@/lib/config";
 
 const geistSans = Geist({
@@ -32,14 +33,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          <div className="fixed top-3 right-4 z-50">
-            <UserMenu />
-          </div>
-          {children}
-          <CommandPalette />
-          <BugReportButton />
-        </AuthProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <div className="fixed top-3 right-4 z-50">
+              <UserMenu />
+            </div>
+            {children}
+            <CommandPalette />
+            <BugReportButton />
+          </AuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );

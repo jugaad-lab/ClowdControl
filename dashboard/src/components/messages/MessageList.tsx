@@ -10,7 +10,8 @@ import {
   ArrowRight,
   Clock,
   Check,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AgentMessage } from '@/app/messages/page';
@@ -23,6 +24,7 @@ interface MessageListProps {
 
 export function MessageList({ messages, onMessageClick, onMessageUpdate }: MessageListProps) {
   const [expandedMessages, setExpandedMessages] = useState<Set<string>>(new Set());
+  const [loadingMessages, setLoadingMessages] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (messageId: string) => {
     setExpandedMessages((prev) => {
@@ -37,14 +39,37 @@ export function MessageList({ messages, onMessageClick, onMessageUpdate }: Messa
   };
 
   const markAsRead = async (message: AgentMessage) => {
-    if (!message.read) {
-      await onMessageUpdate(message.id, { read: true });
+    if (!message.read && !loadingMessages.has(message.id)) {
+      setLoadingMessages(prev => new Set(prev).add(message.id));
+      try {
+        await onMessageUpdate(message.id, { read: true });
+      } finally {
+        setLoadingMessages(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(message.id);
+          return newSet;
+        });
+      }
     }
   };
 
   const toggleRead = async (message: AgentMessage, event: React.MouseEvent) => {
     event.stopPropagation();
-    await onMessageUpdate(message.id, { read: !message.read });
+    
+    if (loadingMessages.has(message.id)) {
+      return; // Already processing
+    }
+
+    setLoadingMessages(prev => new Set(prev).add(message.id));
+    try {
+      await onMessageUpdate(message.id, { read: !message.read });
+    } finally {
+      setLoadingMessages(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(message.id);
+        return newSet;
+      });
+    }
   };
 
   const getMessageTypeColor = (type: string) => {
@@ -93,7 +118,8 @@ export function MessageList({ messages, onMessageClick, onMessageUpdate }: Messa
             key={message.id}
             className={cn(
               'p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer group',
-              !message.read && 'bg-blue-50/50 dark:bg-blue-950/20 border-l-4 border-l-blue-500'
+              !message.read && 'bg-blue-50/50 dark:bg-blue-950/20 border-l-4 border-l-blue-500',
+              loadingMessages.has(message.id) && 'opacity-75'
             )}
             onClick={() => {
               markAsRead(message);
@@ -104,14 +130,19 @@ export function MessageList({ messages, onMessageClick, onMessageUpdate }: Messa
               {/* Read/Unread Indicator */}
               <button
                 onClick={(e) => toggleRead(message, e)}
+                disabled={loadingMessages.has(message.id)}
                 className={cn(
                   'mt-1 flex-shrink-0 transition-colors',
-                  message.read
+                  loadingMessages.has(message.id) 
+                    ? 'text-zinc-400 cursor-not-allowed'
+                    : message.read
                     ? 'text-zinc-400 hover:text-blue-500'
                     : 'text-blue-500 hover:text-blue-600'
                 )}
               >
-                {message.read ? (
+                {loadingMessages.has(message.id) ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : message.read ? (
                   <CheckCircle2 className="w-5 h-5" />
                 ) : (
                   <Circle className="w-5 h-5" />
