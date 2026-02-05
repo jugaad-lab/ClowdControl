@@ -81,22 +81,28 @@ supabase db push
 
 ```
 ClowdControl/
+├── dashboard/               # Next.js web UI
+│   ├── src/
+│   │   ├── app/             # Pages (projects, debates, proposals)
+│   │   ├── components/      # 40+ React components
+│   │   └── lib/             # Supabase client, utils
+│   └── package.json
+├── agents/                  # Agent templates & profiles
+│   ├── pm-orchestrator.md   # PM agent spec
+│   └── worker-*.md          # Specialist agent specs
 ├── docs/                    # Design docs & research
 │   ├── SPEC.md              # Technical specification
 │   ├── RESEARCH.md          # Protocol research
-│   ├── ARCHITECTURE.md      # System design
-│   └── WORKFLOW.md          # Collaboration workflow
+│   ├── PM-PROTOCOL.md       # PM coordination protocol
+│   └── SETUP.md             # Setup guide
 ├── skills/                  # Clawdbot skills
 │   ├── tribe-protocol/      # Trust management
-│   ├── bot-ping/            # Agent presence
-│   └── project-manager/     # PM coordination
+│   └── bot-ping/            # Agent presence
 ├── supabase/                # Database layer
 │   ├── migrations/          # Schema migrations
-│   └── config.toml          # Supabase config
-├── templates/               # Starter templates
-│   ├── TRIBE.md.template    # Trust registry
-│   └── PROJECT.md.template  # Project spec
-└── examples/                # Usage examples
+│   └── full-schema.sql      # Complete schema
+├── scripts/                 # Utility scripts
+└── templates/               # Starter templates
 ```
 
 ## Why Discord?
