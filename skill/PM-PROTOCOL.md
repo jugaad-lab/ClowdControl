@@ -1,255 +1,241 @@
-# PM Protocol — Agent Dispatch System
-
-**Version:** 1.0  
-**Target:** Any Clawdbot instance acting as PM
-
 ---
+name: mission-control-pm
+description: PM dispatch protocol for multi-agent task coordination. Manages sprints, dispatches tasks to specialized agents, monitors progress, and chains work in Full Speed mode.
+metadata: {"clawdbot":{"emoji":"🎯"}}
+---
+
+# Mission Control PM Protocol
+
+A comprehensive task dispatch system that transforms any Clawdbot instance into a Project Manager capable of coordinating specialized agent teams. This skill provides the complete workflow for receiving work requests, matching tasks to agents, spawning workers, and monitoring progress through completion.
 
 ## Overview
 
-When a task needs execution, the PM follows a structured dispatch protocol. This ensures work flows through the proper agent pipeline — never done ad-hoc by the PM itself (unless no suitable specialist exists).
+The PM protocol enables sophisticated multi-agent coordination with three execution modes:
+- **Manual Mode**: Dispatch individual tasks on demand
+- **Full Speed Mode**: Chain through all sprint tasks with automatic progression
+- **Background Mode**: Process backlog tasks at regular intervals
 
----
+All work flows through specialized agents — the PM never executes tasks directly unless no suitable agent exists.
 
-## Trigger Sources
+## Prerequisites
 
-The PM receives work requests from three sources:
+1. **AgentRegistry Database**: Set up a database with agent profiles (see templates/)
+2. **Project Structure**: Tasks directory for detailed specifications
+3. **Agent Skills**: Install relevant skills for your specialist agents
+4. **Monitoring Setup**: Cron job capability for automated monitoring
 
-| Source | How it arrives | Example |
-|--------|---------------|---------|
-| **Webhook** | External webhook to configured channel | `🚀 Start Requested — Task: Fix progress bug` |
-| **Cron/Heartbeat** | PM heartbeat checks active sprints | PM finds unassigned tasks in priority order |
-| **Direct** | Human tells PM directly | "Start working on the auth feature" |
+## Quick Start
 
-All three MUST follow the same dispatch protocol below.
+### 1. Set Up AgentRegistry
 
----
-
-## Dispatch Protocol
-
-### Step 1: Parse the Task
-
-Extract from the request:
-- **Task title** and description
-- **Task ID** (UUID)
-- **Task type** (development, research, design, testing, bug, documentation, etc.)
-- **Priority** (P1-P4)
-- **Project ID**
-
-### Step 2: Query AgentRegistry
-
-Fetch specialist agents from the AgentRegistry:
+Create your AgentRegistry database with this schema:
 
 ```sql
-SELECT * FROM agents 
-WHERE agent_type = 'specialist' 
-AND is_active = true;
+CREATE TABLE agents (
+  id TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  role TEXT NOT NULL,
+  capabilities TEXT[] NOT NULL,
+  invocation_method TEXT CHECK (invocation_method IN ('sessions_spawn', 'claude_code', 'custom')),
+  invocation_config JSONB NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  agent_type TEXT DEFAULT 'specialist'
+);
 ```
 
-Each agent record contains:
+Add your first developer agent:
+```sql
+INSERT INTO agents (id, display_name, role, capabilities, invocation_method, invocation_config) VALUES
+('worker-dev', 'Developer', 'Developer', 
+ ARRAY['coding', 'debugging', 'architecture'], 
+ 'claude_code',
+ '{"model": "anthropic/claude-sonnet-4-5", "allowedTools": ["Bash(*)", "Edit(*)", "Write(*)", "Read(*)", "Fetch(*)"]}');
+```
+
+### 2. Configure Your Trigger Source
+
+Choose how the PM receives work:
+
+**Option A: Discord Webhook**
 ```json
 {
-  "id": "worker-dev",
-  "display_name": "Developer",
-  "role": "Developer", 
-  "capabilities": ["coding", "debugging", "architecture"],
-  "invocation_method": "claude_code",
-  "invocation_config": {
-    "model": "anthropic/claude-sonnet-4-5",
-    "allowedTools": ["Bash(*)", "Edit(*)", "Write(*)", "Read(*)", "Fetch(*)"]
-  }
+  "webhook_url": "https://your-clawdbot-endpoint/webhook/discord",
+  "channel": "#your-mission-control-channel",
+  "trigger_format": "🚀 Start Requested — Task: {task_title}"
 }
 ```
 
-### Step 3: Select Best Agent
+**Option B: Heartbeat Monitoring**
+```markdown
+<!-- In HEARTBEAT.md -->
+Check active sprint for unassigned tasks in priority order.
+If found: start dispatch protocol.
+```
 
-Match task type → agent capabilities:
+**Option C: Direct Commands**
+```
+"Start working on the authentication feature"
+```
 
-| Task Type | Primary Agent | Fallback |
-|-----------|--------------|----------|
+### 3. Create First Task
+
+Write a task specification to `tasks/TASK-{slug}.md`:
+
+```markdown
+# Task: Add User Authentication
+
+## Task ID
+`550e8400-e29b-41d4-a716-446655440000`
+
+## Agent
+- **Target:** worker-dev
+- **Model:** anthropic/claude-sonnet-4-5
+
+## Objective
+Implement JWT-based user authentication with login/logout/signup endpoints.
+
+## Requirements
+1. Create auth middleware
+2. Add JWT token generation/validation
+3. Implement login/logout/signup routes
+
+## Acceptance Criteria
+- [ ] User can sign up with email/password
+- [ ] User can log in and receive JWT token
+- [ ] Protected routes validate JWT tokens
+- [ ] User can log out (token invalidation)
+
+## Files to Modify
+- `src/auth/` — New auth module
+- `src/middleware/auth.ts` — JWT middleware
+- `src/routes/auth.ts` — Auth endpoints
+
+## Project Location
+`/path/to/your/project`
+```
+
+## Dispatch Protocol
+
+When work arrives, the PM follows this exact sequence:
+
+### Step 1: Parse Request
+Extract task details:
+- Title and description
+- Task ID (generate UUID if missing)
+- Task type (development, research, design, testing, bug, documentation)
+- Priority (P1-P4)
+- Project ID
+
+### Step 2: Query AgentRegistry
+```python
+# Pseudo-code for agent matching
+available_agents = query_database(
+    "SELECT * FROM agents WHERE is_active = true AND agent_type = 'specialist'"
+)
+```
+
+### Step 3: Match Task to Agent
+
+Use this mapping table:
+
+| Task Type | Primary Agent Type | Fallback |
+|-----------|-------------------|----------|
 | `development`, `bug` | Developer | PM handles |
 | `research` | Customer Researcher | Product Analyst |
 | `design` | Designer | — |
 | `testing` | QA Engineer | UI QA |
 | `documentation` | Documentation Specialist | Content Writer |
 | `business`, `marketing` | Social Media / Email | — |
-| `other` | PM evaluates and picks | — |
+| `other` | PM evaluates | — |
 
-**Selection criteria:**
+Selection criteria:
 1. Match capabilities to task type
-2. Check if agent is currently busy (via active sessions)
-3. Prefer agents with relevant recent activity on the same project
+2. Check availability (not currently busy)
+3. Prefer agents with recent project experience
 
 ### Step 4: Create Task File
+Write detailed specification to `tasks/TASK-{slug}.md` using the provided template.
 
-Write a detailed task specification to `tasks/TASK-{slug}.md`:
+### Step 5: Spawn Agent
 
-```markdown
-# Task: {Title}
+Based on agent's `invocation_method`:
 
-## Task ID
-`{uuid}`
-
-## Agent
-- **Target:** {agent_id}
-- **Model:** {from invocation_config}
-
-## Objective
-{Clear, specific goal}
-
-## Requirements
-1. {Requirement 1}
-2. {Requirement 2}
-
-## Acceptance Criteria
-- [ ] {Criterion 1}
-- [ ] {Criterion 2}
-
-## Files to Modify
-- `{path}` — {what changes}
-
-## Project Location
-`{absolute path to project}`
-```
-
-### Step 5: Invoke Agent
-
-Based on `invocation_method`:
-
-#### `sessions_spawn` (most agents)
-
+#### sessions_spawn Method
 ```python
 sessions_spawn(
-  task=f"Read {task_file_path} and complete the task. Report results when done.",
-  model=invocation_config['model'],
-  label=f"{agent_id}-{task_slug}",
-  thinking=invocation_config.get('thinking')
+    task=f"Read {task_file_path} and complete the task. Report results when done.",
+    model=agent_config['model'],
+    label=f"{agent_id}-{task_slug}",
+    thinking=agent_config.get('thinking')
 )
 ```
 
-#### `claude_code` (developer agents)
+#### claude_code Method (for developers)
+```python
+# 1. Pre-trust project
+update_claude_config(project_path, trusted=True)
 
-1. Pre-trust the project in `~/.claude.json`
-2. Write task to `TASK.md` in project root
-3. **Pick mastery agent based on complexity:**
-   - Low (< 50 LOC) → `--agent junior-dev`
-   - Medium, frontend → `--agent frontend-dev`
-   - Medium, backend → `--agent backend-dev`
-   - High (> 200 LOC) → `--agent senior-dev`
-   - Multi-component → `--agent project-manager`
-4. Spawn with the selected agent:
+# 2. Write TASK.md in project root with mastery analysis
+task_content = render_template('TASK-MASTERY-TEMPLATE.md', {
+    'complexity_analysis': analyze_task_complexity(task),
+    'delegation_hints': generate_delegation_hints(task),
+    **task_data
+})
+write_file(f"{project_path}/TASK.md", task_content)
 
-```bash
-cd {project_path}
-claude --agent {mastery-agent} -p --allowedTools "Bash(*)" "Edit(*)" "Write(*)" "Read(*)" "Fetch(*)" \
-  "Follow TASK.md and complete the task. Commit your changes when done."
+# 3. Spawn Claude Code with mastery delegation capability
+subprocess.run([
+    "claude", 
+    "--allowedTools", "Bash(*)", "Edit(*)", "Write(*)", "Read(*)", "Fetch(*)",
+    "Analyze TASK.md complexity. If high complexity OR specialized domain, delegate to appropriate mastery agent using claude --agent. Otherwise execute directly. Commit when done."
+], cwd=project_path)
 ```
 
-> **MANDATORY:** Always include `--agent` flag. Available: `senior-dev`, `junior-dev`, `frontend-dev`, `backend-dev`, `project-manager`, `ai-engineer`, `ml-engineer`, `data-scientist`, `data-engineer`, `product-manager`
+#### Mastery Agent Selection Rules
+When dispatching to mastery-enabled agents, include delegation hints:
 
-#### `custom` (extensible)
-
-Follow `invocation_config.command` template.
+```python
+def generate_delegation_hints(task):
+    complexity = estimate_complexity(task.description, task.files_to_modify)
+    domain = classify_domain(task.requirements)
+    
+    if complexity == 'high' or len(task.files_to_modify) > 5:
+        return 'senior-dev'
+    elif domain == 'frontend':
+        return 'frontend-dev' 
+    elif domain == 'backend':
+        return 'backend-dev'
+    elif complexity == 'low':
+        return 'junior-dev'
+    else:
+        return 'direct'  # Handle without delegation
+```
 
 ### Step 6: Update Task Status
-
-After spawning:
 ```sql
 UPDATE tasks SET 
-  status = 'assigned',
-  assigned_to = '{agent_id}',
-  assigned_at = NOW()
+    status = 'assigned',
+    assigned_to = '{agent_id}',
+    assigned_at = NOW()
 WHERE id = '{task_id}';
 ```
 
-Log to activity:
-```sql
-INSERT INTO activity_log (project_id, action, actor_id, details)
-VALUES ('{project_id}', 'task_assigned', '{pm_id}', 
-  '{\"task_id\": \"{task_id}\", \"agent_id\": \"{agent_id}\", \"method\": \"{invocation_method}\"}');
-```
+### Step 7: Start Monitoring
 
-### Step 7: Start Monitoring Cron
+**CRITICAL**: Every dispatch must create a monitoring mechanism.
 
-**Every dispatch MUST start a monitoring cron if one isn't already running.**
+Create a cron job to check agent progress:
 
-#### When to create monitor cron:
-- **Webhook trigger** → Create cron for that task
-- **Full Speed mode** → Create cron for the sprint
-- **Single task dispatch** → Create cron for that task
-- **Heartbeat picks up task** → Create cron if not already running
-
-#### Monitor cron behavior:
-- **Frequency:** Every 5 minutes
-- **Scope:** All in-progress tasks in scope
-- **Actions per check:**
-  1. Poll each agent's session status
-  2. If agent finished → mark task complete, chain next if Full Speed
-  3. If agent failed → reassign or escalate, notify channel
-  4. If agent stuck (>15 min no progress) → check logs, intervene
-- **Auto-disable:** When all monitored tasks are done
-- **Target:** `sessionTarget: "isolated"` with `wakeMode: "next-heartbeat"`
-
-#### Template:
 ```json
 {
-  "name": "sprint{N}-agent-monitor",
-  "description": "Monitor Sprint {N} agents - auto-created by PM dispatch",
-  "schedule": {"kind": "cron", "expr": "*/5 * * * *", "tz": "{your-timezone}"},
-  "sessionTarget": "isolated",
-  "wakeMode": "next-heartbeat",
-  "payload": {
-    "kind": "agentTurn",
-    "text": "🔄 SPRINT {N} AGENT MONITOR — Check all in-progress tasks, update status, chain next if Full Speed mode.",
-    "deliver": true,
-    "channel": "discord",
-    "to": "channel:{your-channel-id}"
-  }
-}
-```
-
-### Step 8: Execution Mode Behaviors
-
-#### Manual Mode
-- **No automated chaining.** PM waits for next trigger.
-- When triggered → dispatch one task, monitor until done, stop.
-- Single-task monitoring cron: every 5 min, auto-disables when that task completes.
-
-#### Full Speed Mode
-- **5-min monitoring cron** that:
-  1. Checks all in-progress agents
-  2. When agent finishes → marks task done, picks next backlog task, dispatches it
-  3. Chains through ALL backlog tasks automatically
-  4. Only stops on: blocker, budget limit, or no more backlog tasks
-  5. When sprint complete → post summary to channel, disable cron
-
-#### Background Mode
-- **30-min task processing cron** that:
-  1. Checks active sprint for backlog tasks
-  2. Picks highest-priority backlog task
-  3. Dispatches to appropriate agent
-  4. Monitors spawned agent
-  5. When agent finishes → marks task done, waits for next 30-min cycle
-  6. Processes ONE task per cycle (no chaining)
-  7. When sprint complete → post summary, disable cron
-
-#### Mode Switch Behavior
-- **→ Manual:** Disable processing crons. In-progress tasks continue.
-- **→ Full Speed:** Create 5-min monitoring cron immediately. Start chaining if backlog exists.
-- **→ Background:** Create 30-min processing cron. First run at next cycle.
-
-#### Cron Templates
-
-**Full Speed:**
-```json
-{
-  "name": "sprint{N}-fullspeed-monitor",
+  "name": "task-monitor-{task-slug}",
+  "description": "Monitor agent progress on task {task_id}",
   "schedule": {"kind": "cron", "expr": "*/5 * * * *"},
   "sessionTarget": "isolated",
   "wakeMode": "next-heartbeat",
   "payload": {
-    "kind": "agentTurn",
-    "message": "🔥 FULL SPEED MONITOR — Sprint {N}. Check agents, chain next task if any finished.",
+    "kind": "agentTurn", 
+    "message": "🔄 Monitor task {task_id}: Check agent {agent_id} status, update database, notify if complete/failed.",
     "deliver": true,
     "channel": "discord",
     "to": "channel:{your-channel-id}"
@@ -257,16 +243,27 @@ VALUES ('{project_id}', 'task_assigned', '{pm_id}',
 }
 ```
 
-**Background:**
+## Execution Modes
+
+### Manual Mode
+- **Trigger**: Start button or direct instruction
+- **Behavior**: Dispatch one task, monitor until done, stop
+- **Cron**: Single-task monitoring (auto-disables when complete)
+
+### Full Speed Mode  
+- **Trigger**: Sprint activation with backlog
+- **Behavior**: Chain through ALL backlog tasks automatically
+- **Cron**: 5-minute monitoring that dispatches next task when previous completes
+
 ```json
 {
-  "name": "sprint{N}-background-processor",
-  "schedule": {"kind": "cron", "expr": "*/30 * * * *"},
+  "name": "sprint{N}-fullspeed-monitor",
+  "schedule": {"kind": "cron", "expr": "*/5 * * * *"},
   "sessionTarget": "isolated", 
   "wakeMode": "next-heartbeat",
   "payload": {
     "kind": "agentTurn",
-    "message": "⏰ BACKGROUND PROCESSOR — Sprint {N}. Pick ONE backlog task, dispatch to best agent.",
+    "message": "🔥 FULL SPEED — Check sprint {N} agents, chain next backlog task if any finished",
     "deliver": true,
     "channel": "discord",
     "to": "channel:{your-channel-id}"
@@ -274,52 +271,140 @@ VALUES ('{project_id}', 'task_assigned', '{pm_id}',
 }
 ```
 
-> ⚠️ **NEVER use `systemEvent` + `sessionTarget: main` for monitoring crons.**
-> Always use `agentTurn` + `sessionTarget: isolated` + `deliver: true` for reliable execution.
+### Background Mode
+- **Trigger**: Sprint activation with 30-min processing
+- **Behavior**: Process one backlog task per cycle (no chaining)
+- **Cron**: 30-minute intervals, picks highest priority task
 
----
+```json
+{
+  "name": "sprint{N}-background-processor", 
+  "schedule": {"kind": "cron", "expr": "*/30 * * * *"},
+  "sessionTarget": "isolated",
+  "wakeMode": "next-heartbeat",
+  "payload": {
+    "kind": "agentTurn",
+    "message": "⏰ BACKGROUND — Pick ONE backlog task from sprint {N}, dispatch to best agent",
+    "deliver": true, 
+    "channel": "discord",
+    "to": "channel:{your-channel-id}"
+  }
+}
+```
 
-## Anti-Patterns (Don't Do This)
+## Agent Communication
+
+### Task File Format
+All agents receive work via standardized task files following `templates/TASK-TEMPLATE.md`.
+
+### Progress Monitoring
+The monitoring cron checks:
+1. **Agent Status**: Poll session/process status
+2. **Task Updates**: Check for completion signals
+3. **Mastery Delegation**: Detect when Claude Code delegates to sub-agents
+4. **Error Handling**: Detect failures and reassign
+5. **Chain Logic**: In Full Speed, dispatch next task automatically
+
+### Mastery Delegation Tracking
+When monitoring mastery-enabled agents:
+- **Check session logs** for delegation commands (`claude --agent` calls)
+- **Update delegation chain** in database when sub-delegation detected
+- **Monitor sub-agent progress** through Claude Code session
+- **Escalate if delegation fails** to ensure task doesn't get stuck
+
+### Output Collection
+Agents report via standardized formats (see agent profiles in examples/).
+
+## Anti-Patterns to Avoid
 
 | ❌ Wrong | ✅ Right |
 |----------|---------|
-| PM fixes the bug itself without checking roster | PM queries agents, dispatches to specialist |
-| PM says "No agent available" without checking DB | PM queries database for available agents |
-| PM skips task file, gives instructions verbally | PM writes full task spec to `tasks/TASK-*.md` |
-| PM announces spawn without actual tool call | PM calls tool first, confirms with real session ID |
-| PM says "I'll check on them" with no mechanism | PM creates monitoring cron immediately |
-| PM manually remembers to check agents | Monitoring cron auto-fires every 5 min until done |
+| PM executes tasks directly | PM dispatches to specialist agents |
+| PM announces spawn without tool call | PM calls spawn tool first, then confirms |
+| PM manually checks on agents | PM creates monitoring cron before confirming |
+| Verbal task instructions | Written task file following template |
+| Hardcoded agent selection | Query database for available agents |
+
+## Configuration Placeholders
+
+Replace these with your actual values:
+
+- `{your-database-url}` → Your AgentRegistry database
+- `{your-channel-id}` → Discord/Slack channel for notifications  
+- `{project-workspace}` → Your projects directory
+- `{your-clawdbot-endpoint}` → Webhook endpoint URL
+
+## Claude Code Mastery Integration
+
+### Available Mastery Agents
+The following claude-code-mastery agents are available for delegation:
+
+| Agent | Specialization | Model | Best For |
+|-------|----------------|-------|----------|
+| `senior-dev` | Architecture, complex logic | Sonnet | Large features, refactoring, system design |
+| `junior-dev` | Simple fixes, documentation | Haiku | Bug fixes, docs, unit tests, simple features |
+| `frontend-dev` | React, UI/UX, client-side | Sonnet | UI components, responsive design, interactions |
+| `backend-dev` | APIs, databases, server-side | Sonnet | REST APIs, database design, authentication |
+| `project-manager` | Task breakdown, planning | Sonnet | Multi-component features, sprint planning |
+| `ai-engineer` | LLM integration, ML | Sonnet | AI features, prompt engineering, RAG systems |
+
+### Delegation Workflow
+1. **PM dispatches** task to worker-dev using standard protocol
+2. **worker-dev analyzes** task complexity and domain requirements  
+3. **Delegation decision**: Based on complexity matrix and domain expertise
+4. **Internal delegation**: `claude --agent {chosen-agent} -p "prompt"`
+5. **Monitoring continues**: PM tracks progress through Claude Code session
+6. **Result reporting**: Final results bubble up through delegation chain
+
+### Fallback Strategy
+If mastery delegation fails:
+1. **worker-dev handles directly** (maintains task completion)
+2. **Monitoring detects issues** via session logs
+3. **PM intervention** if needed for complex failures
+4. **Task marked complete** regardless of delegation success/failure
+
+## Extension Points
+
+### Custom Agent Types
+Add new agent types by:
+1. Creating agent profile following `templates/AGENT-PROFILE-TEMPLATE.md`
+2. Adding to database with appropriate capabilities
+3. Updating task type mapping table
+
+### Custom Invocation Methods
+Extend beyond `sessions_spawn` and `claude_code`:
+1. Set `invocation_method: "custom"`
+2. Define `invocation_config.command` template
+3. Handle in dispatch logic
+
+### Custom Task Types
+Map new task types to agent capabilities in the dispatch logic.
+
+## Troubleshooting
+
+**Agent Won't Spawn**
+- Check database connectivity
+- Verify agent is `is_active = true`
+- Ensure invocation_config is valid JSON
+
+**Tasks Not Getting Picked Up**
+- Verify monitoring cron is running
+- Check task status in database
+- Ensure agent hasn't failed silently
+
+**No Suitable Agent Found**
+- Add fallback agent to database
+- Update capability mapping
+- Allow PM to handle edge cases
+
+## Files Included
+
+- `PM-PROTOCOL.md` — Complete protocol reference
+- `templates/AGENT-PROFILE-TEMPLATE.md` — Agent profile structure
+- `templates/TASK-TEMPLATE.md` — Task specification format
+- `examples/example-agent-friday.md` — Sample developer agent
+- `examples/example-task.md` — Sample task file
 
 ---
 
-## Configuration Variables
-
-Replace these placeholders with your setup:
-
-- `{your-database-url}` — Agent roster database connection
-- `{your-channel-id}` — Discord/Slack channel for notifications
-- `{your-timezone}` — Local timezone for cron schedules
-- `{pm_id}` — Your PM agent ID
-- `{project_workspace}` — Base path for projects
-
----
-
-## Sharing This Protocol
-
-This protocol is designed to be **portable**. Any Clawdbot PM can follow it:
-
-1. Agent roster lives in **shared database** (not local config)
-2. Task files use **standard template** 
-3. Invocation methods are **self-describing** via database
-4. Any PM reads protocol + queries DB = ready to dispatch
-
-To deploy on a new PM:
-- Install this skill
-- Configure database connection
-- Set up channel notifications
-- Populate AgentRegistry
-- Test with a simple task
-
----
-
-*This is the canonical reference for PM task dispatch.*
+*Install this skill to transform your Clawdbot into a mission control PM capable of coordinating specialized agent teams.*
