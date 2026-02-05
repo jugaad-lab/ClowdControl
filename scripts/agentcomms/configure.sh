@@ -30,7 +30,8 @@ configure_agent() {
   # Show current config
   echo "Current config:"
   curl -sS "${MC_SUPABASE_URL}/rest/v1/agents?id=eq.${AGENT_ID}&select=id,comms_endpoint,status" \
-    -H "apikey: ${MC_SERVICE_KEY}" | jq .
+    -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" | jq .
   echo ""
   
   # Prompt for Discord user ID
@@ -41,6 +42,7 @@ configure_agent() {
     
     curl -sS -X PATCH "${MC_SUPABASE_URL}/rest/v1/agents?id=eq.${AGENT_ID}" \
       -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" \
       -H "Content-Type: application/json" \
       -d "{\"comms_endpoint\": \"${COMMS_ENDPOINT}\"}"
     
@@ -59,7 +61,8 @@ configure_project() {
   # Show current config
   echo "Current config:"
   curl -sS "${MC_SUPABASE_URL}/rest/v1/projects?id=eq.${PROJECT_ID}&select=id,name,discord_channel_id,settings" \
-    -H "apikey: ${MC_SERVICE_KEY}" | jq .
+    -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" | jq .
   echo ""
   
   # Prompt for Discord channel ID
@@ -68,6 +71,7 @@ configure_project() {
   if [[ "$CHANNEL_ID" != "skip" && -n "$CHANNEL_ID" ]]; then
     curl -sS -X PATCH "${MC_SUPABASE_URL}/rest/v1/projects?id=eq.${PROJECT_ID}" \
       -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" \
       -H "Content-Type: application/json" \
       -d "{\"discord_channel_id\": \"${CHANNEL_ID}\"}"
     
@@ -82,8 +86,10 @@ configure_project() {
     # Update settings JSONB with webhook
     curl -sS -X PATCH "${MC_SUPABASE_URL}/rest/v1/projects?id=eq.${PROJECT_ID}" \
       -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" \
       -H "Content-Type: application/json" \
-      -d "{\"settings\": $(curl -sS "${MC_SUPABASE_URL}/rest/v1/projects?id=eq.${PROJECT_ID}&select=settings" -H "apikey: ${MC_SERVICE_KEY}" | jq -c ".[0].settings + {\"notification_webhook_url\": \"${WEBHOOK_URL}\"}")}"
+      -d "{\"settings\": $(curl -sS "${MC_SUPABASE_URL}/rest/v1/projects?id=eq.${PROJECT_ID}&select=settings" -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" | jq -c ".[0].settings + {\"notification_webhook_url\": \"${WEBHOOK_URL}\"}")}"
     
     echo ""
     echo "✅ Updated notification_webhook_url"
@@ -94,14 +100,16 @@ list_projects() {
   echo "📋 All Projects:"
   echo ""
   curl -sS "${MC_SUPABASE_URL}/rest/v1/projects?select=id,name,status&order=created_at.desc" \
-    -H "apikey: ${MC_SERVICE_KEY}" | jq -r '.[] | "[\(.status // "unknown")] \(.id) - \(.name // "unnamed")"'
+    -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" | jq -r '.[] | "[\(.status // "unknown")] \(.id) - \(.name // "unnamed")"'
 }
 
 show_agent() {
   echo "👤 Agent Config: ${AGENT_ID}"
   echo ""
   curl -sS "${MC_SUPABASE_URL}/rest/v1/agents?id=eq.${AGENT_ID}" \
-    -H "apikey: ${MC_SERVICE_KEY}" | jq .
+    -H "apikey: ${MC_SERVICE_KEY}" \
+    -H "Authorization: Bearer ${MC_SERVICE_KEY}" | jq .
 }
 
 # Parse command
