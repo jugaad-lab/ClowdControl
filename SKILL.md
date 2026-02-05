@@ -62,8 +62,11 @@ Secure it: `chmod 600 ~/workspace/.env.agentcomms`
 | Discover agents | `./scripts/agentcomms/discover.sh` |
 | Check inbox | `./scripts/agentcomms/tasks.sh --mine` |
 | Send task | `./scripts/agentcomms/handoff.sh <agent> "task" [priority]` |
+| Broadcast task | `./scripts/agentcomms/broadcast.sh "task" [priority]` |
 | Claim task | `./scripts/agentcomms/claim.sh <task_id>` |
+| Reject task | `./scripts/agentcomms/reject.sh <task_id> "reason"` |
 | Complete task | `./scripts/agentcomms/complete.sh <task_id> "result"` |
+| Fail task | `./scripts/agentcomms/fail.sh <task_id> "error"` |
 | Update status | `./scripts/agentcomms/status.sh "Working on X"` |
 
 ## Components
@@ -72,11 +75,16 @@ Secure it: `chmod 600 ~/workspace/.env.agentcomms`
 CLI tools for agent-to-agent communication:
 - `register.sh` — Register agent with capabilities
 - `discover.sh` — Find online agents
-- `handoff.sh` — Send task to another agent
+- `handoff.sh` — Send task to specific agent
+- `broadcast.sh` — Post task anyone can claim
 - `claim.sh` — Claim a pending task
-- `complete.sh` — Mark task done
-- `tasks.sh` — List tasks (inbox, pending, all)
+- `reject.sh` — Decline a task with reason
+- `complete.sh` — Mark task done with result
+- `fail.sh` — Mark task failed with error
+- `tasks.sh` — List tasks (--mine, --pending, --claimable, --all)
 - `status.sh` — Broadcast status or check registry
+
+**Protocol Documentation:** See `docs/CROSS_CLAWDBOT_PROTOCOL.md` for the full task assignment protocol.
 
 ### PM Protocol (`skill/SKILL.md`)
 Project Manager dispatch protocol for coordinating specialist agents:
