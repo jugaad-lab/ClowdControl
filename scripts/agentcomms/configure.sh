@@ -93,8 +93,8 @@ configure_project() {
 list_projects() {
   echo "📋 All Projects:"
   echo ""
-  curl -sS "${MC_SUPABASE_URL}/rest/v1/projects?select=id,name,status,discord_channel_id&order=created_at.desc" \
-    -H "apikey: ${MC_SERVICE_KEY}" | jq -r '.[] | "[\(.status)] \(.id) - \(.name) (channel: \(.discord_channel_id // "not set"))"'
+  curl -sS "${MC_SUPABASE_URL}/rest/v1/projects?select=id,name,status&order=created_at.desc" \
+    -H "apikey: ${MC_SERVICE_KEY}" | jq -r '.[] | "[\(.status // "unknown")] \(.id) - \(.name // "unnamed")"'
 }
 
 show_agent() {
