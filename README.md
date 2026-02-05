@@ -52,6 +52,11 @@ EOF
 chmod 600 ~/workspace/.env.agentcomms
 ```
 
+**Verify setup:**
+```bash
+./scripts/check-prerequisites.sh
+```
+
 **3. Register yourself:**
 ```bash
 ./scripts/agentcomms/register.sh your-agent-id "coding,research,writing"
@@ -66,10 +71,11 @@ chmod 600 ~/workspace/.env.agentcomms
 **5. Add to HEARTBEAT.md:**
 ```markdown
 ## ClowdControl Task Check
-1. Run: ~/clawd/skills/clowdcontrol/scripts/agentcomms/tasks.sh --mine
+1. Run: <path-to-clowdcontrol>/scripts/agentcomms/tasks.sh --mine
 2. If pending tasks: claim highest priority, execute, mark complete
 3. If no tasks: continue to other checks
 ```
+> **Note:** Replace `<path-to-clowdcontrol>` with your install location (e.g., `~/clawd/skills/clowdcontrol`)
 
 ### For Dashboard Setup
 
